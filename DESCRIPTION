@@ -1,0 +1,18 @@
+Package: tsBAR
+Type: Package
+Title: Broken Adaptive Ridge in Time-Series
+Version: 0.0.1
+Authors@R: c(
+  person("Orest", "Prifti", email = "orest.prifti@bancaditalia.it", role = c("aut","cre")),
+  person("Luca", "Margaritella", email = "luca.margaritella@gmail.com", role = "aut"),
+  person("Gianluca", "Cubadda", email = "cbdglc00@uniroma2.it", role = "aut"))
+Maintainer: Orest Prifti <orest.prifti@bancaditalia.it>
+Description: Implements broken adaptive ridge estimation for linear 
+	regressions and high-dimensional vector autoregressions using
+	coordinatewise fixed-point thresholding. Provides regularization
+	paths, information-criterion-based tuning, and forecasting tools,
+	with computational routines implemented in C++ through Rcpp.
+License: GPL-3 + file LICENSE
+Encoding: UTF-8
+URL: https://github.com/orestprifti/tsBAR
+BugReports: https://github.com/orestprifti/tsBAR/issues
