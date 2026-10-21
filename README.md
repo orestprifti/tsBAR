@@ -1,2 +1,2 @@
-# TS-BAR
+# tsBAR
 Broken Adaptive Ridge in Time-Series
