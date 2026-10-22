@@ -12,7 +12,9 @@ Description: Implements broken adaptive ridge estimation for linear
 	coordinatewise fixed-point thresholding. Provides regularization
 	paths, information-criterion-based tuning, and forecasting tools,
 	with computational routines implemented in C++ through Rcpp.
-License: GPL-3 + file LICENSE
-Encoding: UTF-8
+License: GPL (>= 2)
+Imports: Rcpp (>= 1.0.14)
+LinkingTo: Rcpp
+RoxygenNote: 7.3.3
 URL: https://github.com/orestprifti/tsBAR
 BugReports: https://github.com/orestprifti/tsBAR/issues
