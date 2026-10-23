@@ -10,9 +10,36 @@ Rcpp::Rostream<true>&  Rcpp::Rcout = Rcpp::Rcpp_cout_get();
 Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
-// bar_ccd
-List bar_ccd(const NumericMatrix& x, const NumericMatrix& y, double lambda_max_input, double lambda_min_input, double c_lambda_min, bool flg_lambda_min, bool intercept, bool standardize, double alpha_init, Nullable<NumericMatrix> penalty_factor, int nlambda, std::string crit, double epsilon, double thresh, int max_itt, const double tol, const double sqrt_tol);
-RcppExport SEXP _tsBAR_bar_ccd(SEXP xSEXP, SEXP ySEXP, SEXP lambda_max_inputSEXP, SEXP lambda_min_inputSEXP, SEXP c_lambda_minSEXP, SEXP flg_lambda_minSEXP, SEXP interceptSEXP, SEXP standardizeSEXP, SEXP alpha_initSEXP, SEXP penalty_factorSEXP, SEXP nlambdaSEXP, SEXP critSEXP, SEXP epsilonSEXP, SEXP threshSEXP, SEXP max_ittSEXP, SEXP tolSEXP, SEXP sqrt_tolSEXP) {
+// bar_ccd_reg
+List bar_ccd_reg(const NumericMatrix& x, const NumericVector& y, double lambda_max_input, double lambda_min_input, double c_lambda_min, bool flg_lambda_min, bool intercept, bool standardize, double alpha_init, Nullable<NumericVector> penalty_factor, int nlambda, std::string crit, double epsilon, double thresh, int max_itt, const double tol, const double sqrt_tol);
+RcppExport SEXP _tsBAR_bar_ccd_reg(SEXP xSEXP, SEXP ySEXP, SEXP lambda_max_inputSEXP, SEXP lambda_min_inputSEXP, SEXP c_lambda_minSEXP, SEXP flg_lambda_minSEXP, SEXP interceptSEXP, SEXP standardizeSEXP, SEXP alpha_initSEXP, SEXP penalty_factorSEXP, SEXP nlambdaSEXP, SEXP critSEXP, SEXP epsilonSEXP, SEXP threshSEXP, SEXP max_ittSEXP, SEXP tolSEXP, SEXP sqrt_tolSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const NumericMatrix& >::type x(xSEXP);
+    Rcpp::traits::input_parameter< const NumericVector& >::type y(ySEXP);
+    Rcpp::traits::input_parameter< double >::type lambda_max_input(lambda_max_inputSEXP);
+    Rcpp::traits::input_parameter< double >::type lambda_min_input(lambda_min_inputSEXP);
+    Rcpp::traits::input_parameter< double >::type c_lambda_min(c_lambda_minSEXP);
+    Rcpp::traits::input_parameter< bool >::type flg_lambda_min(flg_lambda_minSEXP);
+    Rcpp::traits::input_parameter< bool >::type intercept(interceptSEXP);
+    Rcpp::traits::input_parameter< bool >::type standardize(standardizeSEXP);
+    Rcpp::traits::input_parameter< double >::type alpha_init(alpha_initSEXP);
+    Rcpp::traits::input_parameter< Nullable<NumericVector> >::type penalty_factor(penalty_factorSEXP);
+    Rcpp::traits::input_parameter< int >::type nlambda(nlambdaSEXP);
+    Rcpp::traits::input_parameter< std::string >::type crit(critSEXP);
+    Rcpp::traits::input_parameter< double >::type epsilon(epsilonSEXP);
+    Rcpp::traits::input_parameter< double >::type thresh(threshSEXP);
+    Rcpp::traits::input_parameter< int >::type max_itt(max_ittSEXP);
+    Rcpp::traits::input_parameter< const double >::type tol(tolSEXP);
+    Rcpp::traits::input_parameter< const double >::type sqrt_tol(sqrt_tolSEXP);
+    rcpp_result_gen = Rcpp::wrap(bar_ccd_reg(x, y, lambda_max_input, lambda_min_input, c_lambda_min, flg_lambda_min, intercept, standardize, alpha_init, penalty_factor, nlambda, crit, epsilon, thresh, max_itt, tol, sqrt_tol));
+    return rcpp_result_gen;
+END_RCPP
+}
+// bar_ccd_var
+List bar_ccd_var(const NumericMatrix& x, const NumericMatrix& y, double lambda_max_input, double lambda_min_input, double c_lambda_min, bool flg_lambda_min, bool intercept, bool standardize, double alpha_init, Nullable<NumericMatrix> penalty_factor, int nlambda, std::string crit, double epsilon, double thresh, int max_itt, const double tol, const double sqrt_tol);
+RcppExport SEXP _tsBAR_bar_ccd_var(SEXP xSEXP, SEXP ySEXP, SEXP lambda_max_inputSEXP, SEXP lambda_min_inputSEXP, SEXP c_lambda_minSEXP, SEXP flg_lambda_minSEXP, SEXP interceptSEXP, SEXP standardizeSEXP, SEXP alpha_initSEXP, SEXP penalty_factorSEXP, SEXP nlambdaSEXP, SEXP critSEXP, SEXP epsilonSEXP, SEXP threshSEXP, SEXP max_ittSEXP, SEXP tolSEXP, SEXP sqrt_tolSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -33,13 +60,14 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< int >::type max_itt(max_ittSEXP);
     Rcpp::traits::input_parameter< const double >::type tol(tolSEXP);
     Rcpp::traits::input_parameter< const double >::type sqrt_tol(sqrt_tolSEXP);
-    rcpp_result_gen = Rcpp::wrap(bar_ccd(x, y, lambda_max_input, lambda_min_input, c_lambda_min, flg_lambda_min, intercept, standardize, alpha_init, penalty_factor, nlambda, crit, epsilon, thresh, max_itt, tol, sqrt_tol));
+    rcpp_result_gen = Rcpp::wrap(bar_ccd_var(x, y, lambda_max_input, lambda_min_input, c_lambda_min, flg_lambda_min, intercept, standardize, alpha_init, penalty_factor, nlambda, crit, epsilon, thresh, max_itt, tol, sqrt_tol));
     return rcpp_result_gen;
 END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_tsBAR_bar_ccd", (DL_FUNC) &_tsBAR_bar_ccd, 17},
+    {"_tsBAR_bar_ccd_reg", (DL_FUNC) &_tsBAR_bar_ccd_reg, 17},
+    {"_tsBAR_bar_ccd_var", (DL_FUNC) &_tsBAR_bar_ccd_var, 17},
     {NULL, NULL, 0}
 };
 
