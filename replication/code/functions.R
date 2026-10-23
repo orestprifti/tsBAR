@@ -1,23 +1,26 @@
 # Load packages
-packages <- c('dplyr','glmnet','ncvreg','Rcpp','doParallel')
+packages <- c('dplyr','readr','tidyr','zoo','remotes','glmnet','ncvreg','doParallel','xtable','ggplot2')
 for (pkg in packages){
-  if (!requireNamespace(pkg, quietly = TRUE)){
+  if (!requireNamespace(pkg, quietly = TRUE)) {
     install.packages(pkg, dependencies = TRUE)
   }
   library(pkg, character.only = TRUE)
 }
 
 #-------------------------------------------------------------------------------
-# bar_ccd
+# bar_ccd_var() / bar_ccd_reg()
 #-------------------------------------------------------------------------------
 # Estimates a BAR model using Cyclical Coordinate Descent (CCD) in C++
-# sourceCpp('tsBAR/src/bar.cpp');
+if (!requireNamespace('tsBAR', quietly = TRUE)) {
+  remotes::install_github('orestprifti/tsBAR')
+}
+library('tsBAR', character.only = TRUE)
 
 #-------------------------------------------------------------------------------
-#                                 CMP_DGP
+# cmp_dgp()
 #-------------------------------------------------------------------------------
-# Cubadda-Margaritella-Prifti DGP (CMP_DGP)
-CMP_DGP <- function(T_, K, r, rho, sigma = 0.1, cov.mat = 'Toeplitz', eig.max=0.75, eig.min=0.25, burnin=50) {
+# Cubadda-Margaritella-Prifti DGP (cmp_dgp)
+cmp_dgp <- function(T_, K, r, rho, sigma = 0.1, cov.mat = 'Toeplitz', eig.max=0.75, eig.min=0.25, burnin=50) {
   T_new <- T_ + burnin
   if (r == 1) {
     alternate_sign <- rep(c(1, -1), length.out = K)
@@ -51,7 +54,7 @@ CMP_DGP <- function(T_, K, r, rho, sigma = 0.1, cov.mat = 'Toeplitz', eig.max=0.
 }
 
 #-------------------------------------------------------------------------------
-# cov.toeplitz
+# cov.toeplitz()
 #-------------------------------------------------------------------------------
 # Generates a Toeplitz covariance matrix
 cov.toeplitz <- function(T_, K, sigma, rho) {
@@ -78,7 +81,7 @@ cov.toeplitz <- function(T_, K, sigma, rho) {
 }
 
 #-------------------------------------------------------------------------------
-#                                 create_lags
+# create_lags()
 #-------------------------------------------------------------------------------
 # Creates lags
 create_lags <- function(x, p = 1, include.original = TRUE, trim = TRUE) {
@@ -101,7 +104,7 @@ create_lags <- function(x, p = 1, include.original = TRUE, trim = TRUE) {
 }
 
 #-------------------------------------------------------------------------------
-# ic.glmnet
+# ic.glmnet()
 #-------------------------------------------------------------------------------
 # Elastic-net estimate with information criteria tuning the lambda parameter
 ic.glmnet <- function(x, y, crit = c('bic','ebic','aic','aicc','hqc'), ...) {
@@ -168,7 +171,7 @@ ic.glmnet <- function(x, y, crit = c('bic','ebic','aic','aicc','hqc'), ...) {
 }
 
 #-------------------------------------------------------------------------------
-# ic.scad
+# ic.scad()
 #-------------------------------------------------------------------------------
 # Estimates a SCAD model with information criteria tuning the lambda parameter
 ic.scad <- function(y, x, crit = c('bic','ebic','aic','aicc','hqc'), alpha = 1,
@@ -233,16 +236,17 @@ ic.scad <- function(y, x, crit = c('bic','ebic','aic','aicc','hqc'), alpha = 1,
 }
 
 #-------------------------------------------------------------------------------
-# var.lasso
+# var.lasso()
 #-------------------------------------------------------------------------------
 # LASSO/Adaptive LASSO applied to a VAR system of equations
-var.lasso <- function(y, x, K, p = 1, alpha = 1, adaptive = c('none','lasso','ridge'),
+var.lasso <- function(y, x, p = 1, alpha = 1, adaptive = c('none','lasso','ridge'),
                       crit = c('bic','ebic','aic','aicc','hqc'), nlambda = 100,
                       standardize = TRUE, intercept = TRUE, ...) {
 
   adaptive <- match.arg(adaptive)
   crit <- match.arg(crit)
 
+  K <- ncol(x)
   # 1st step
   if(adaptive == 'lasso'){
     eq.coef <- matrix(nrow = K*p, ncol = K)
@@ -273,8 +277,7 @@ var.lasso <- function(y, x, K, p = 1, alpha = 1, adaptive = c('none','lasso','ri
                      'lambda.index' = NULL
   )
   for(i in 1:K){
-    # Plain LASSO/Ridge
-    if (is.null(ada.w)) {
+    if (is.null(ada.w)) {                                                       # plain LASSO/Ridge
       alasso <- ic.glmnet(x = x, y = y[,i], crit = crit, alpha = alpha,
                              standardize = standardize, intercept = intercept, ...)
 
@@ -287,13 +290,12 @@ var.lasso <- function(y, x, K, p = 1, alpha = 1, adaptive = c('none','lasso','ri
                              'lambda.max'   = alasso$lambda.max,
                              'lambda.index' = alasso$lambda.index
       )
-    } else {
-      # Adaptive LASSO/Ridge
-      if (sum(ada.w[,i] == Inf) == length(ada.w[,i])) {
+    } else {                                                                    # adaptive LASSO/Ridge
+      if (sum(ada.w[,i] == Inf) == length(ada.w[,i])) {                        
         warning('Adaptive weights all equal to Inf, all candidated excluded in the first step. Adaptive Lasso not estimated.')
         alasso              <- list()
         alasso$rss		      <- sum((y[,i] - mean(y[,i]))^2)
-        alasso$coefficients <- rbind(mean(y[,i]), matrix(0,nrow = ncol(x), ncol = 1))
+        alasso$coefficients <- rbind(mean(y[,i]), matrix(0, nrow = ncol(x), ncol = 1))
         alasso$lambda       <- 0
         alasso$ic           <- c(0)
         alasso$lambda.max   <- NA
@@ -303,7 +305,7 @@ var.lasso <- function(y, x, K, p = 1, alpha = 1, adaptive = c('none','lasso','ri
         wpen[which(wpen == Inf)] <- 0                                           # variables with Inf weights are manually removed
         alasso <- ic.glmnet(x = x, y = y[,i], crit = crit, alpha = alpha,
                                standardize = standardize, intercept = intercept,
-                               exclude = which(ada.w[,i] == Inf),                   # exclude variables with Inf weights
+                               exclude = which(ada.w[,i] == Inf),               # exclude variables with Inf weights
                                penalty.factor = wpen, ...)
       }
 
@@ -332,12 +334,72 @@ var.lasso <- function(y, x, K, p = 1, alpha = 1, adaptive = c('none','lasso','ri
 }
 
 #-------------------------------------------------------------------------------
-# var.scad
+# univar.lasso()
+#-------------------------------------------------------------------------------
+# LASSO/Adaptive LASSO applied to a single equation
+univar.lasso <- function(y, x, p = 1, alpha = 1, adaptive = c('none','lasso','ridge'),
+                      crit = c('bic','ebic','aic','aicc','hqc'), nlambda = 100,
+                      standardize = TRUE, intercept = TRUE, ...) {
+  
+  adaptive <- match.arg(adaptive)
+  crit <- match.arg(crit)
+  
+  # 1st step
+  if(adaptive == 'lasso'){
+    eq <- ic.glmnet(x = x, y = y, crit = crit, alpha = 1,
+                    standardize = standardize, intercept = intercept)
+    eq.coef <- eq$coefficients[-1]
+    ada.w	<- abs(eq.coef)^(-1)                                                  # adaptive weights
+  } else if (adaptive == 'ridge'){
+    eq <- ic.glmnet(x = x, y = y, crit = crit, alpha = 0,
+                    standardize = standardize, intercept = intercept)
+    eq.coef <- eq$coefficients[-1]
+    ada.w	<- abs(eq.coef)^(-1)                                                  # adaptive weights
+  } else {
+    ada.w <- NULL
+  }
+  
+  # 2nd step
+  if (is.null(ada.w)) {
+    alasso <- ic.glmnet(x = x, y = y, crit = crit, alpha = alpha,               # plain LASSO/Ridge
+                        standardize = standardize, intercept = intercept, ...)
+  } else {                                                                      # adaptive LASSO/Ridge
+    if (sum(ada.w == Inf) == length(ada.w)) {
+      warning('Adaptive weights all equal to Inf, all candidated excluded in the first step. Adaptive Lasso not estimated.')
+      alasso              <- list()
+      alasso$rss		      <- sum((y - mean(y))^2)
+      alasso$coefficients <- rbind(mean(y), matrix(0, nrow = ncol(x), ncol = 1))
+      alasso$lambda       <- 0
+      alasso$ic           <- c(0)
+      alasso$lambda.max   <- NA
+      alasso$lambda.index <- NA
+    } else{
+      wpen                     <- ada.w
+      wpen[which(wpen == Inf)] <- 0                                             # variables with Inf weights are manually removed
+      alasso <- ic.glmnet(x = x, y = y, crit = crit, alpha = alpha,
+                          standardize = standardize, intercept = intercept,
+                          exclude = which(ada.w == Inf),                        # exclude variables with Inf weights
+                          penalty.factor = wpen, ...)
+    }
+  }
+  
+  # collect results
+  alasso.est	<- list('x' = x, 'y' = y, 'coefficients' = alasso$coefficients, 'ada.w' = ada.w,
+                     'rss' = alasso$rss, 'lambda' = alasso$lambda, 'lambda.max' = alasso$lambda.max,
+                     'lambda.index' = alasso$lambda.index
+                     )
+
+  return(alasso.est)
+}
+
+#-------------------------------------------------------------------------------
+# var.scad()
 #-------------------------------------------------------------------------------
 # SCAD applied to a VAR system of equations
-var.scad <- function(y, x, K, p = 1, crit = c('bic','ebic','aic','aicc','hqc'),
+var.scad <- function(y, x, p = 1, crit = c('bic','ebic','aic','aicc','hqc'),
                      alpha = 1, nlambda = 100, family = 'gaussian',
                      epsilon = 1e-4, thresh = 1e-9, max_itt = 1e6,...) {
+  K <- ncol(x)
   scad.ic <- list()
   scad.est	<- list('x' = x, 'y' = y, 'coefficients' = NULL, 'rss' = NULL,
                    'lambda' = NULL, 'lambda.max' = NULL, 'lambda.index' = NULL)
@@ -363,4 +425,124 @@ var.scad <- function(y, x, K, p = 1, crit = c('bic','ebic','aic','aicc','hqc'),
   }
 
   return(scad.est)
+}
+
+#-------------------------------------------------------------------------------
+# transform_fredmd()
+#-------------------------------------------------------------------------------
+# Do transformations to FRED-MD using the t-code
+transform_fredmd <- function(file = '', date_start = NULL, date_end = NULL, transform = TRUE, skip = 2) {
+  # error checking
+  if (!is.logical(transform))
+    stop("'transform' must be logical.")
+  if ((class(date_start) != 'Date') && (!is.null(date_start)))
+    stop("'date_start' must be Date or NULL.")
+  if ((class(date_end) != 'Date') && (!is.null(date_end)))
+    stop("'date_end' must be Date or NULL.")
+  
+  if (class(date_start) == 'Date') {
+    if (as.numeric(format(date_start, '%d')) != 1)
+      stop("'date_start' must be Date whose day is 1.")
+    if (date_start < as.Date('1959-01-01'))
+      stop("'date_start' must be later than 1959-01-01.")
+  }
+  
+  if (class(date_end) == 'Date') {
+    if (as.numeric(format(date_end, '%d')) != 1)
+      stop("'date_end' must be Date whose day is 1.")
+  }
+  
+  # prepare raw data
+  rawdata <- readr::read_csv(file, col_names = FALSE, col_types = cols(X1 = col_date(format = '%m/%d/%Y')),
+                             skip = skip)
+  
+  rawdata <- as.data.frame(rawdata)
+  row_to_remove = c()
+  for (row in (nrow(rawdata)-20):nrow(rawdata)){
+    if(!any(is.finite(unlist(rawdata[row, ])))){
+      row_to_remove = c(row_to_remove,row)
+    }
+  }
+  if(length(row_to_remove)>0){
+    rawdata = rawdata[-row_to_remove,]
+  }
+  
+  attrdata          <- utils::read.csv(file, header = FALSE, nrows = skip)
+  header            <- c('date', unlist(attrdata[1,2:ncol(attrdata)]))
+  colnames(rawdata) <- header
+  
+  # store transformation codes as tcode
+  tcode <- unlist(attrdata[skip,2:ncol(attrdata)])
+  
+  # subfunction transxf: data transformation based on tcodes
+  transxf <- function(x, tcode) {
+    n <- length(x)                                                              # number of observations (including missing values)
+    small <- 1e-06                                                              # value close to zero
+    
+    # allocate output variable
+    y  <- rep(NA, n)
+    y1 <- rep(NA, n)
+    
+    # transformation
+    if (tcode == 1) {
+      y <- x                                                                    # case 1: Level (i.e. no transformation): x(t)
+    } else if (tcode == 2) {
+      y[2:n] <- (x[2:n] - x[1:(n - 1)])                                         # case 2: First difference: x(t)-x(t-1)
+    } else if (tcode == 3) {
+      y[3:n] <- (x[3:n] - 2 * x[2:(n - 1)] + x[1:(n - 2)])                      # case 3: Second difference: (x(t)-x(t-1))-(x(t-1)-x(t-2))
+    } else if (tcode == 4) {
+      if (min(x, na.rm = TRUE) > small) y <- log(x)                             # case 4: Natural log: ln(x)
+    } else if (tcode == 5) {                                                    # case 5: First difference of natural log: ln(x)-ln(x-1)
+      if (min(x, na.rm = TRUE) > small) {
+        x      <- log(x)
+        y[2:n] <- (x[2:n] - x[1:(n - 1)])
+      }
+    } else if (tcode == 6) {                                                    # case 6: Second difference of natural log:
+      if (min(x, na.rm = TRUE) > small) {                                       # (ln(x)-ln(x-1))-(ln(x-1)-ln(x-2))
+        x      <- log(x)
+        y[3:n] <- (x[3:n] - 2 * x[2:(n - 1)] + x[1:(n - 2)])
+      }
+    } else if (tcode == 7) {                                                    # case 7: First difference of percent change:
+      y1[2:n] <- (x[2:n] - x[1:(n - 1)])/x[1:(n - 1)]                           # (x(t)/x(t-1)-1)-(x(t-1)/x(t-2)-1)
+      y[3:n]  <- (y1[3:n] - y1[2:(n - 1)])
+    }
+    return(y)
+  }
+  
+  # fill single NA values by the mean of the previous and following observations
+  for (j in 2:ncol(rawdata)){
+    for (i in 2:nrow(rawdata)){
+      if (is.na(rawdata[i,j]) & !is.na(rawdata[i-1,j]) & !is.na(rawdata[i+1,j])){
+        rawdata[i,j] <- (as.numeric(rawdata[i-1,j]) + as.numeric(rawdata[i+1,j])) / 2
+      }
+    }
+  }
+  
+  # transform data
+  if (transform) {
+    N          <- ncol(rawdata)
+    data       <- rawdata
+    data[,2:N] <- NA
+    # perform transformation using subfunction transxf()
+    for (i in 2:N) {
+      temp <- transxf(rawdata[, i], tcode[i - 1])
+      data[, i] <- temp
+    }
+  } else {
+    data <- rawdata
+  }
+  
+  # Null case of date_start and date_end
+  if (is.null(date_start))
+    date_start <- as.Date('1959-01-01')
+  if (is.null(date_end))
+    date_end <- data[, 1][nrow(data)]
+  
+  # subset data
+  index_start <- which.max(data[,1] == date_start)
+  index_end   <- which.max(data[,1] == date_end)
+  
+  outdata <- data[index_start:index_end,]
+  class(outdata) <- c('data.frame','fredmd')
+  return(outdata)
 }
