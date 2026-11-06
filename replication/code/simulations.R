@@ -1,12 +1,12 @@
 #-------------------------------------------------------------------------------
 # 1. FUNCTIONS
 #-------------------------------------------------------------------------------
-source(file.path('code', 'functions.R'))
+source(file.path('code','functions.R'))
 
 #-------------------------------------------------------------------------------
 # 2. SETUP
 #-------------------------------------------------------------------------------
-nmc           <- 20                                                             # number of Monte Carlo simulations
+nmc           <- 1000                                                           # number of Monte Carlo simulations
 criteria      <- 'ebic'                                                         # information criterion to use
 p             <- 1                                                              # VAR(p)
 save_heatmaps <- FALSE                                                          # TRUE if you want to save coefficient for heatmaps, FALSE if you don't
@@ -16,8 +16,8 @@ all_mc_results <- data.frame()                                                  
 mc_designs <- expand.grid(
   T_  = c(50, 100, 500),
   r   = c('1', '2', '5', '10'),
-  rho = c(0), #0.5),
-  K   = c(20), #40, 80, 160, 320),
+  rho = c(0, 0.5),
+  K   = c(20, 40, 80, 160, 320),
   stringsAsFactors = FALSE
   ) %>%
   rowwise() %>%
@@ -40,18 +40,18 @@ for(i in c(1:nrow(mc_designs))) {
 
   # Monte Carlo
   info_parallel <- c('K','T_','rho','r','criteria','p')
-  cl            <- makeCluster(11 - 1)                               # use all the cores leaving one free
+  cl            <- makeCluster(detectCores() - 1)                               # use all the cores leaving one free
   registerDoParallel(cl)
   clusterExport(cl, varlist = info_parallel)
-  clusterEvalQ(cl, {source('code/functions.R')})                                # upload in each core the functions
-  mc_result <- foreach(imc = 1:nmc, .combine = rbind, .export = info_parallel) %dopar% {
+  clusterEvalQ(cl, {source(file.path('code','functions.R'))})                   # upload in each core the functions
+  mc_result <- foreach(imc = 1:nmc, .combine = rbind) %dopar% {
     set.seed(imc)
-    DGP <- cmp_dgp(K = K, T_ = T_+1, r = r, rho = rho)
-    A <- DGP[['A']] %>% unlist() %>% as.matrix()
+    DGP      <- cmp_dgp(K = K, T_ = T_+1, r = r, rho = rho)
+    A        <- DGP[['A']] %>% unlist() %>% as.matrix()
     DGP_data <- DGP[['dataset']] %>% unlist() %>% as.matrix()
 
-    supp_A <- A != 0                                                            # true support recovery
-    sum_A <- sum(supp_A)                                                        # number of parameters different from zero in matrix A
+    supp_A   <- A != 0                                                          # true support recovery
+    sum_A    <- sum(supp_A)                                                     # number of parameters different from zero in matrix A
 
     dataset_lags <- create_lags(x = DGP_data, p = p)                            # create lag = 1
 
@@ -91,7 +91,6 @@ for(i in c(1:nrow(mc_designs))) {
     SCAD_est         <- var.scad(y = y, x = x, crit = criteria,
                          standardize = TRUE, intercept = TRUE)
     SCAD             <- SCAD_est$coefficients[-1,]                              # take the coefficients discarding the intercept
-
 
     models <- list('BAR'          = BAR,
                    'aLASSO_ridge' = aLASSO_ridge,
@@ -150,7 +149,6 @@ for(i in c(1:nrow(mc_designs))) {
                                      'num_variables_included' = num_variables_included
                                      )
                           )
-
     }
 
     return(imc_result)
@@ -158,9 +156,9 @@ for(i in c(1:nrow(mc_designs))) {
   stopCluster(cl)
 
   mc_result <- mc_result %>%
-    group_by(model) %>%
-    summarise(
-      across(where(~ is.numeric(.x) || is.logical(.x)), ~ mean(.x, na.rm = TRUE))
+    dplyr::group_by(model) %>%
+    dplyr::summarise(
+      dplyr::across(where(~ is.numeric(.x) || is.logical(.x)), ~ mean(.x, na.rm = TRUE))
     ) %>%
     dplyr::mutate(
       RMSE = sqrt(RMSE),
@@ -174,6 +172,7 @@ for(i in c(1:nrow(mc_designs))) {
                             mc_result
                             )
                           )
+  
   # Save results for each MC design
   write.csv(mc_result,
             file = file.path('output','mc','csv',paste0('K',K,'_T',T_,'_r',r,'_rho',rho,'_',criteria,'_mc',nmc,'.csv')),
@@ -187,7 +186,7 @@ write.csv(all_mc_results,
           row.names = FALSE)
 
 #-------------------------------------------------------------------------------
-# 3. MONTE CARLO TABLES
+# 4. LATEX TABLES
 #-------------------------------------------------------------------------------
 tab_mc_results <- read.csv(file.path('output','mc','csv',paste0('FINAL_MC',nmc,'_',criteria,'.csv')),
                           sep = ',',
@@ -256,8 +255,8 @@ for(i in c(1:nrow(mc_spec))) {
     tidyr::pivot_wider(names_from = mod_T, values_from = value)
   
   tab_wide <- tab_wide %>%
-    group_by(measure, K) %>%
-    dplyr::mutate(across(
+    dplyr::group_by(measure, K) %>%
+    dplyr::mutate(dplyr::across(
       contains('_T'),
       .fns = \(x) {
         cur_T       <- sub('.*_T', '', cur_column())
@@ -390,7 +389,7 @@ for(i in c(1:nrow(mc_spec))) {
 }
 
 #-------------------------------------------------------------------------------
-# 3. PLOT WIN RATE
+# 5. WIN RATE PLOT
 #-------------------------------------------------------------------------------
 # calculate winners
 winners <- tab_mc_results %>%
@@ -401,7 +400,7 @@ winners <- tab_mc_results %>%
     `True model included`         = round(`True model included`, 3),
     `Share of relevant variables` = round(`Share of relevant variables`, 3)
   ) %>% 
-  group_by(K, r, T, rho) %>%
+  dplyr::group_by(K, r, T, rho) %>%
   dplyr::mutate(
     best_RMSFE = (RMSFE == min(RMSFE, na.rm = TRUE)),
     best_RMSE  = (RMSE  == min(RMSE,  na.rm = TRUE)),
@@ -415,8 +414,8 @@ winners <- tab_mc_results %>%
 
 # sum wins for each model
 sum_wins <- winners %>%
-  group_by(model) %>%
-  summarise(
+  dplyr::group_by(model) %>%
+  dplyr::summarise(
     wins_RMSE             = sum(best_RMSE, na.rm = TRUE),
     wins_RMSFE            = sum(best_RMSFE, na.rm = TRUE),
     wins_Correct_Sparsity = sum(best_Correct_Sparsity, na.rm = TRUE),
