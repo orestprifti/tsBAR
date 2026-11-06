@@ -3,6 +3,9 @@
 # Run after you opened "replication.Rproj"
 # ============================================================
 
+# 0. Clear the workspace
+gc; rm(list=ls(all.names = TRUE))
+
 # 1. Load "here" package for directory
 if (!requireNamespace('here', quietly = TRUE)) {
   install.packages('here', dependencies = TRUE)
